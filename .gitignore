@@ -1,0 +1,5 @@
+tabbyAPI/
+models/
+logs/
+*.csv
+__pycache__/
