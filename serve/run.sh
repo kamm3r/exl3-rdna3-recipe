@@ -7,7 +7,11 @@ set -euo pipefail
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 [ -x "$ROOT/tabbyAPI/venv/bin/python" ] || { echo "run.sh: run setup/install.sh first" >&2; exit 1; }
 export HIP_VISIBLE_DEVICES=${HIP_VISIBLE_DEVICES:-0}
-extra=()
-[ -n "${MODELS_DIR:-}" ] && extra+=(--model-dir "$MODELS_DIR")
+cfg="$ROOT/serve/config.yml"
+# TabbyAPI ignores command-line overrides when --config is given, so point model_dir in a local copy instead
+if [ -n "${MODELS_DIR:-}" ]; then
+  cfg="$ROOT/serve/config.local.yml"
+  sed "s|^  model_dir: .*|  model_dir: $(cd "$MODELS_DIR" && pwd)|" "$ROOT/serve/config.yml" > "$cfg"
+fi
 cd "$ROOT/tabbyAPI"
-exec venv/bin/python main.py --config "$ROOT/serve/config.yml" "${extra[@]}" "$@"
+exec venv/bin/python main.py --config "$cfg" "$@"
