@@ -26,3 +26,5 @@ model:
 
 draft_model:
   draft_mode: mtp
+  # The model has one MTP layer; drafting 3 tokens instead of the default 4 measured ~9% faster decode here.
+  draft_num_tokens: 3

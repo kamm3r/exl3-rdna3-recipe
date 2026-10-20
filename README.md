@@ -15,21 +15,28 @@ no system ROCm install, only the in-kernel `amdgpu` driver.
 
 ## Measured
 
-Five runs of the [local-ai-registry](https://github.com/sybil-solutions/local-ai-registry) lab
+Seven runs of the [local-ai-registry](https://github.com/sybil-solutions/local-ai-registry) lab
 (`lab/lab.py try --on endpoint`), each passing all six gates: loads, answers, thinks (separate `reasoning_content`),
 calls a tool, recalls a code planted at 85% of the window, and decodes at 15 tok/s or more. Each run also sent one image.
 
 | Run | Decode (tok/s, first 30 s) | Prefill (tok/s) | Recall at 106K tokens | Peak VRAM (whole card) | Image |
 |---|---|---|---|---|---|
-| 1 | 72.5 | 934 | 114 s | 20,961 MiB | pass |
-| 2 | 69.2 | 936 | 114 s | 20,999 MiB | pass |
-| 3 | 77.7 | 938 | 113 s | 21,540 MiB | pass |
-| 4 | 92.0 | 937 | 113 s | 21,524 MiB | pass |
-| 5 | 79.5 | 921 | 115 s | 21,577 MiB | pass |
+| 1 | 81.1 | 936 | 114 s | 21,053 MiB | pass |
+| 2 | 84.2 | 930 | 114 s | 21,015 MiB | pass |
+| 3 | 86.8 | 933 | 114 s | 21,004 MiB | pass |
+| 4 | 86.9 | 937 | 114 s | 20,985 MiB | pass |
+| 5 | 88.8 | 934 | 114 s | 21,005 MiB | pass |
+| 6 | 82.9 | 934 | 114 s | 20,991 MiB | pass |
+| 7 | 91.8 | 933 | 114 s | 21,002 MiB | pass |
 
-Decode varies run to run because the speed prompt is sampled and MTP's acceptance depends on the text. Peak VRAM
-includes the desktop (about 0.5-1 GB here), so about 3 GB of the 24 GB stay free. These five runs used
-`serve/config.yml` without the `allowed_origins` line, which only affects browser access.
+Mean decode is 86.1 tok/s. It varies run to run because the speed prompt is sampled and MTP's acceptance depends on
+the text. Peak VRAM includes the desktop (about 0.5 GB here; a browser with many tabs can add another GB), so about
+3 GB of the 24 GB stay free. These runs used `serve/config.yml` without the `allowed_origins` line, which only
+affects browser access.
+
+`draft_num_tokens: 3` is the one tuned setting. The model has a single MTP layer, so drafted tokens past the first
+reuse it and are accepted less often. With the default of 4, six runs averaged 78.9 tok/s (69.2-92.0); 1, 2 and 5
+were slower than 3 in a short benchmark, and a `chunk_size` of 4096 sped prefill up by only 2% for 140 MiB more.
 
 ## Install
 
