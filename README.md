@@ -1,6 +1,6 @@
 # Qwen3.8-27B (EXL3) on an AMD RX 7900 XTX: TabbyAPI + upstream ExLlamaV3
 
-Run Qwen3.8-27B as a local OpenAI-compatible server on one Radeon RX 7900 XTX (24 GB, gfx1100), with 128K context,
+Run Qwen3.8-27B as a local OpenAI-compatible server on one Radeon RX 7900 XTX (24 GB, gfx1100), with 128K or 256K context,
 thinking, tool calling and image input. It uses **unpatched** upstream [TabbyAPI](https://github.com/theroyallab/tabbyAPI)
 and the official [ExLlamaV3](https://github.com/turboderp-org/exllamav3) 1.6.3 ROCm 10 wheels: nothing to compile, and
 no system ROCm install, only the in-kernel `amdgpu` driver.
@@ -13,7 +13,22 @@ no system ROCm install, only the in-kernel `amdgpu` driver.
 | Engine | TabbyAPI `e086a65`, ExLlamaV3 `1.6.3+rocm10.0`, PyTorch `2.13.0+rocm10.0.0`, Python 3.12 |
 | Tested on | RX 7900 XTX 24 GB, Ryzen 7 7800X3D, 32 GB RAM, Nobara 44 (kernel 7.2) |
 
-## Measured
+## Pick a recipe
+
+| Recipe | Start with | Weights | Context and KV cache | Decode (mean of runs) | Peak VRAM (whole card) |
+|---|---|---|---|---|---|
+| **4.0bpw-128k** (default) | `serve/run.sh` | 4.0 bpw (16 GB) | 128K, 8-bit | 86.1 tok/s, 7 runs | ~21.0 GB |
+| **4.0bpw-256k** | `serve/run.sh 4.0bpw-256k` | 4.0 bpw (16 GB) | 256K, 4-bit | 87.8 tok/s, 3 runs | ~21.7 GB |
+| **3.0bpw-256k** | `serve/run.sh 3.0bpw-256k` | 3.0 bpw (13.5 GB), `setup/download_model.sh 3.0` | 256K, 8-bit keys / 6-bit values | 93.5 tok/s, 4 runs | ~21.6 GB |
+
+All three use vision, thinking, tool calls and the MTP draft at 3 tokens. Every run passed the six gates below plus the
+image check. The 4.0 bpw weights are the better model; 3.0 bpw is a little faster and keeps a higher-precision cache at
+256K. At 256K, prefill is about 680 tok/s, so the lab's 213K-token recall prompt takes about 5 minutes. The cache
+settings leave at least 1.5 GB free with a desktop and browser on the same card; settings that passed but left less
+(4.0 bpw with 6-bit cache at 224K or more, 3.0 bpw with 8-bit cache at 256K, 3.5 bpw with 8-bit cache at 256K) are
+not included. 3.5 bpw at 256K with 8-bit cache crashed once when the desktop used 1.2 GB.
+
+## Measured (4.0bpw-128k)
 
 Seven runs of the [local-ai-registry](https://github.com/sybil-solutions/local-ai-registry) lab
 (`lab/lab.py try --on endpoint`), each passing all six gates: loads, answers, thinks (separate `reasoning_content`),
@@ -46,8 +61,8 @@ Requires [uv](https://docs.astral.sh/uv/), git, your user in the `render` and `v
 ```bash
 git clone https://github.com/kamm3r/exl3-rdna3-recipe && cd exl3-rdna3-recipe
 setup/install.sh          # TabbyAPI at e086a65 + the pinned ROCm 10 wheels (setup/requirements.lock.txt) in tabbyAPI/venv
-setup/download_model.sh   # the pinned weights into models/
-serve/run.sh              # http://127.0.0.1:5000/v1, chat page at /ui
+setup/download_model.sh   # the pinned 4.0 bpw weights into models/ (add 3.0 for the 3.0 bpw ones)
+serve/run.sh              # http://127.0.0.1:5000/v1, chat page at /ui (or: serve/run.sh 4.0bpw-256k)
 ```
 
 `HIP_VISIBLE_DEVICES` defaults to `0`. If the machine also has an AMD iGPU (Ryzen 7000/9000 desktops do), check with
